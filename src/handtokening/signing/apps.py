@@ -6,7 +6,7 @@ from django.apps import AppConfig
 
 class CertificatesConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "signing"
+    name = "handtokening.signing"
 
     def ready(self):
         for r in glob.glob("/tmp/handtokening-requests/*"):

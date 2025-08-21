@@ -1,6 +1,6 @@
 from django.db import models
 
-from clients.models import Client
+from handtokening.clients.models import Client
 
 
 class Certificate(models.Model):
