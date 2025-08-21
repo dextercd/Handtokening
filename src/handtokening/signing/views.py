@@ -3,7 +3,6 @@ import os
 import itertools
 import random
 import string
-import getpass
 import hashlib
 
 from django.core.files.uploadedfile import UploadedFile
@@ -16,7 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.parsers import FileUploadParser
 
-from .models import Certificate, TimestampServer, SigningProfile, SigningLog
+from .models import SigningProfile, SigningLog
 from .conf import config
 from .external_value import ExternalValue
 

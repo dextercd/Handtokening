@@ -22,3 +22,6 @@ dev = [
     "black>=25.1.0",
     "ruff>=0.12.9",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"**/handtokening/settings/*.py" = ["F403"]

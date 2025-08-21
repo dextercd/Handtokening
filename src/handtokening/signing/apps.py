@@ -12,11 +12,11 @@ class CertificatesConfig(AppConfig):
         for r in glob.glob("/tmp/handtokening-requests/*"):
             try:
                 os.remove(r)
-            except Exception as exc:
+            except Exception:
                 pass
 
         for r in glob.glob("/tmp/handtokening-responses/*"):
             try:
                 os.remove(r)
-            except Exception as exc:
+            except Exception:
                 pass

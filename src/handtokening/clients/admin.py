@@ -1,10 +1,9 @@
-import secrets
 
 from django.utils import timezone
 from django.contrib import admin
 from django.shortcuts import render
 
-from .models import Client, new_secret, encode_secret
+from .models import Client
 
 
 @admin.register(Client)

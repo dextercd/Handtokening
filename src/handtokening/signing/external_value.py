@@ -2,11 +2,9 @@ import random
 import string
 import json
 import os
-import time
 import socket
 import select
 
-from django.conf import settings
 
 
 def random_file_name():

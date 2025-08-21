@@ -3,13 +3,9 @@ from functools import lru_cache
 import hmac
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password, check_password
-from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from rest_framework import authentication, exceptions
+from rest_framework import authentication
 
 from .models import new_secret, encode_secret
 
