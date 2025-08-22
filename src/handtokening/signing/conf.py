@@ -1,4 +1,5 @@
 from functools import cached_property
+from pathlib import Path
 
 from django.conf import settings
 
@@ -27,6 +28,12 @@ class Configuration:
     @cached_property
     def CLAMSCAN_PATH(self) -> str:
         return getattr(settings, "CLAMSCAN_PATH", None) or "/usr/bin/clamdscan"
+
+    @cached_property
+    def PIN_COMMS_LOCATION(self) -> Path:
+        return Path(
+            getattr(settings, "PIN_COMMS_LOCATION", None) or "/run/handtokening"
+        )
 
 
 config = Configuration()

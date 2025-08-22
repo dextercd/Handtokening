@@ -36,3 +36,5 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+PIN_COMMS_LOCATION = "/tmp/handtokening"

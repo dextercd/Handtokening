@@ -2,6 +2,7 @@ import glob
 import os
 
 from django.apps import AppConfig
+from .conf import config
 
 
 class CertificatesConfig(AppConfig):
@@ -9,14 +10,21 @@ class CertificatesConfig(AppConfig):
     name = "handtokening.signing"
 
     def ready(self):
-        for r in glob.glob("/tmp/handtokening-requests/*"):
+        subdirs = ["", "requests", "responses"]
+        for subdir in subdirs:
             try:
-                os.remove(r)
+                (config.PIN_COMMS_LOCATION / subdir).mkdir(mode=0o775, exist_ok=True)
             except Exception:
                 pass
 
-        for r in glob.glob("/tmp/handtokening-responses/*"):
+        for r in (config.PIN_COMMS_LOCATION / "requests").glob("*"):
             try:
-                os.remove(r)
+                r.unlink()
+            except Exception:
+                pass
+
+        for r in (config.PIN_COMMS_LOCATION / "responses").glob("*"):
+            try:
+                r.unlink()
             except Exception:
                 pass

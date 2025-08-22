@@ -5,6 +5,7 @@ import os
 import socket
 import select
 
+from .conf import config
 
 
 def random_file_name():
@@ -15,9 +16,9 @@ class ExternalValue:
     def __init__(self, req_data: dict):
         self.req_data = req_data
         name = random_file_name()
-        self.tmp_request_file = f"/tmp/handtokening-requests/.{name}"
-        self.request_file = f"/tmp/handtokening-requests/{name}"
-        self.response_file = f"/tmp/handtokening-responses/{name}"
+        self.tmp_request_file = str(config.PIN_COMMS_LOCATION / f"requests/.{name}")
+        self.request_file = str(config.PIN_COMMS_LOCATION / f"requests/{name}")
+        self.response_file = str(config.PIN_COMMS_LOCATION / f"responses/{name}")
         self.socket = None
 
     def __enter__(self):
