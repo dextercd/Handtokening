@@ -35,5 +35,11 @@ class Configuration:
             getattr(settings, "PIN_COMMS_LOCATION", None) or "/run/handtokening"
         )
 
+    @cached_property
+    def STATE_DIRECTORY(self) -> Path:
+        return Path(
+            getattr(settings, "STATE_DIRECTORY", None) or "/var/lib/handtokening"
+        )
+
 
 config = Configuration()

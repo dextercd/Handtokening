@@ -43,3 +43,8 @@ else:
     IPWARE_META_PRECEDENCE_ORDER = ["REMOTE_ADDR"]
 
 PIN_COMMS_LOCATION = "/run/handtokening"
+
+if "STATE_DIRECTORY" in environ:
+    STATE_DIRECTORY = environ["STATE_DIRECTORY"]
+else:
+    STATE_DIRECTORY = "/var/lib/handtokening"

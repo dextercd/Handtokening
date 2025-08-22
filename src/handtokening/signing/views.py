@@ -2,18 +2,18 @@ import subprocess
 import os
 import itertools
 import random
-import string
 import hashlib
 
 from django.core.files.uploadedfile import UploadedFile
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.http import FileResponse
+from django.utils.text import slugify
 from ipware import get_client_ip
-from rest_framework.views import APIView
+from rest_framework.parsers import FileUploadParser
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.parsers import FileUploadParser
+from rest_framework.views import APIView
 
 from .models import SigningProfile, SigningLog
 from .conf import config
@@ -63,10 +63,6 @@ class PinTimeout(SigningError):
     result = SigningLog.Result.PIN_TIMEOUT
 
 
-def random_file_name():
-    return "".join(random.choices(string.ascii_letters + string.digits, k=16))
-
-
 class SignView(APIView):
     parser_classes = [FileUploadParser]
 
@@ -91,7 +87,7 @@ class SignView(APIView):
 
             incoming_file: UploadedFile = request.data["file"]
             signing_log.submitted_file_name = incoming_file.name
-            file_extension = incoming_file.name.rpartition(".")[-1]
+            file_basename, _, file_extension = incoming_file.name.rpartition(".")
 
             if file_extension not in SUPPORTED_FILE_EXTENSIONS:
                 raise UnsupportedExtension(
@@ -122,10 +118,10 @@ class SignView(APIView):
             )
             random.shuffle(timestamp_servers)
 
-            file_name = random_file_name()
+            file_name = f"{signing_log.id}-{slugify(file_basename)}.{file_extension}"
 
-            in_path = f"/tmp/{file_name}.{file_extension}"
-            signing_log.in_path = in_path
+            in_path = config.STATE_DIRECTORY / "in" / file_name
+            signing_log.in_path = str(in_path)
 
             with open(in_path, "wb") as on_disk:
                 for chunk in incoming_file.chunks():
@@ -151,8 +147,8 @@ class SignView(APIView):
             if clamscan.returncode != 0:
                 raise AVPositive(clamscan.stdout.strip())
 
-            out_path = f"/tmp/{file_name}-signed.{file_extension}"
-            signing_log.out_path = out_path
+            out_path = config.STATE_DIRECTORY / "out" / file_name
+            signing_log.out_path = str(out_path)
 
             # Build the osslsigncode command
             osslsigncode_command = [
@@ -161,7 +157,7 @@ class SignView(APIView):
                 "-in",
                 in_path,
                 "-out",
-                out_path,
+                str(out_path),
             ]
 
             # PKCS #11

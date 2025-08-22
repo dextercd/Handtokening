@@ -37,4 +37,5 @@ DATABASES = {
     }
 }
 
+STATE_DIRECTORY = "/tmp/handtokening"
 PIN_COMMS_LOCATION = "/tmp/handtokening"
