@@ -15,6 +15,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from handtokening.shell import quote_cmd_hide_secrets
+
 from .models import SigningProfile, SigningLog
 from .conf import config
 from .external_value import ExternalValue
@@ -155,10 +157,10 @@ class SignView(APIView):
 
             # Build the osslsigncode command
             osslsigncode_command = [
-                config.OSSLSIGNCODE_PATH,
+                str(config.OSSLSIGNCODE_PATH),
                 "sign",
                 "-in",
-                in_path,
+                str(in_path),
                 "-out",
                 str(out_path),
             ]
@@ -198,6 +200,7 @@ class SignView(APIView):
             # Signed content description
             if description:
                 osslsigncode_command.extend(["-n", description])
+
             if url:
                 osslsigncode_command.extend(["-i", url])
 
@@ -225,6 +228,10 @@ class SignView(APIView):
                 pwd = resp["code"]
                 proc_env["PKCS11_PIN"] = pwd
                 proc_env["PKCS11_FORCE_LOGIN"] = "1"
+
+            signing_log.osslsigncode_command = quote_cmd_hide_secrets(
+                osslsigncode_command
+            )
 
             signresult = subprocess.run(
                 osslsigncode_command, capture_output=True, text=True, env=proc_env

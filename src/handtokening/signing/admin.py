@@ -86,10 +86,11 @@ class SigningLogAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
             },
         ),
         (
-            "Logs",
+            "osslsigncode",
             {
                 "classes": ["collapse"],
                 "fields": [
+                    "osslsigncode_command",
                     "osslsigncode_returncode",
                     "osslsigncode_stdout",
                     "osslsigncode_stderr",

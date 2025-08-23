@@ -92,6 +92,8 @@ class SigningLog(models.Model):
     out_file_size = models.BigIntegerField(null=True, blank=True)
     out_file_sha256 = models.CharField(null=True, blank=True)
 
+    osslsigncode_command = models.CharField(null=True, blank=True)
+
     osslsigncode_returncode = models.IntegerField(null=True, blank=True)
     osslsigncode_stdout = models.TextField(null=True, blank=True)
     osslsigncode_stderr = models.TextField(null=True, blank=True)
