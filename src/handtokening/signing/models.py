@@ -1,7 +1,15 @@
+from functools import lru_cache
+import importlib.metadata
+
 from django.conf import settings
 from django.db import models
 
 from handtokening.clients.models import Client
+
+
+@lru_cache
+def _get_handtokening_version():
+    return importlib.metadata.version("handtokening")
 
 
 class Certificate(models.Model):
@@ -65,6 +73,8 @@ class SigningLog(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     finished = models.DateTimeField(null=True, blank=True)
+
+    handtokening_version = models.CharField(default=_get_handtokening_version)
 
     ip = models.GenericIPAddressField()
     user_agent = models.CharField(null=True, blank=True)

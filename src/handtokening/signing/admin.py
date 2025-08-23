@@ -57,6 +57,7 @@ class SigningLogAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
             None,
             {
                 "fields": [
+                    "handtokening_version",
                     ("created", "updated", "finished"),
                     ("ip", "user_agent"),
                     ("client", "client_name"),
