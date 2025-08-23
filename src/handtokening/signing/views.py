@@ -95,7 +95,10 @@ class SignView(APIView):
                 )
 
             signing_profile: SigningProfile = get_object_or_404(
-                SigningProfile.objects.filter(name=signing_profile_name)
+                SigningProfile.objects.filter(
+                    users_with_access__id__contains=request.user.id,
+                    name=signing_profile_name,
+                )
             )
             signing_log.signing_profile = signing_profile
 

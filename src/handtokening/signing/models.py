@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from handtokening.clients.models import Client
@@ -43,8 +44,21 @@ class SigningProfile(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
+    users_with_access = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through="SigningProfileAccess",
+        blank=True,
+        related_name="signing_profiles",
+    )
+
     def __str__(self):
         return f"SigningProfile: {self.id} {self.name}"
+
+
+class SigningProfileAccess(models.Model):
+    signing_profile = models.ForeignKey(SigningProfile, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
 
 
 class SigningLog(models.Model):

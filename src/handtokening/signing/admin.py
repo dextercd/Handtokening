@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import Certificate, TimestampServer, SigningProfile, SigningLog
+from .models import (
+    Certificate,
+    TimestampServer,
+    SigningProfile,
+    SigningProfileAccess,
+    SigningLog,
+)
 from handtokening.admin import ReadOnlyAdminMixin
 
 
@@ -14,9 +20,16 @@ class TimestampServerAdmin(admin.ModelAdmin):
     list_display = ["name", "url", "is_enabled"]
 
 
+class SigningProfileAccessInline(admin.TabularInline):
+    model = SigningProfileAccess
+    readonly_fields = ["created"]
+
+
 @admin.register(SigningProfile)
 class SigningProfileAdmin(admin.ModelAdmin):
-    list_display = ["name"]
+    list_display = ["name", "created", "updated"]
+
+    inlines = (SigningProfileAccessInline,)
 
 
 @admin.register(SigningLog)
