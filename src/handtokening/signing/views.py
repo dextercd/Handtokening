@@ -1,8 +1,8 @@
 import subprocess
 import os
-import itertools
 import random
 import hashlib
+from pathlib import Path
 
 from django.core.files.uploadedfile import UploadedFile
 from django.http import FileResponse
@@ -15,11 +15,15 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from handtokening.shell import quote_cmd_hide_secrets
-
 from .models import SigningProfile, SigningLog
 from .conf import config
 from .external_value import ExternalValue
+from .osslsigncode import (
+    OSSLSignCodeCommand,
+    OSSLSignCodePkcs11,
+    OSSLSignCodeResult,
+    command_log_string,
+)
 
 
 SUPPORTED_FILE_EXTENSIONS = [
@@ -65,35 +69,46 @@ class PinTimeout(SigningError):
     result = SigningLog.Result.PIN_TIMEOUT
 
 
+def sha256_file_path(path: str | Path) -> str:
+    """Return SHA256 hash of the bytes in the file at the provided path."""
+    with open(path, "rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
+
 class SignView(APIView):
     parser_classes = [FileUploadParser]
 
     def post(self, request: Request, format=None):
+        signing_profile_name = request.query_params["signing-profile"]
+        description = request.query_params.get("description") or None
+        url = request.query_params.get("url") or None
+        incoming_file: UploadedFile = request.data["file"]
+
+        result: OSSLSignCodeResult | None = None
+        cmd = OSSLSignCodeCommand()
+        cmd.program_path = config.OSSLSIGNCODE_PATH
+        cmd.description = description
+        cmd.url = url
+
         ip, _ = get_client_ip(request)
         signing_log = SigningLog(
             ip=ip,
             user_agent=request.META.get("HTTP_USER_AGENT"),
             client=request.user.client,
             client_name=request.user.username,
+            signing_profile_name=signing_profile_name,
+            description=description,
+            url=url,
+            submitted_file_name=incoming_file.name,
         )
         signing_log.save()
 
         try:
-            signing_profile_name = request.query_params["signing-profile"]
-            description = request.query_params.get("description") or None
-            url = request.query_params.get("url") or None
-
-            signing_log.signing_profile_name = signing_profile_name
-            signing_log.description = description
-            signing_log.url = url
-
-            incoming_file: UploadedFile = request.data["file"]
-            signing_log.submitted_file_name = incoming_file.name
             file_basename, _, file_extension = incoming_file.name.rpartition(".")
 
             if file_extension not in SUPPORTED_FILE_EXTENSIONS:
                 raise UnsupportedExtension(
-                    f"Unsupported file extensions: '{file_extension}'"
+                    f"Unsupported file extension: '{file_extension}'"
                 )
 
             signing_profile: SigningProfile = get_object_or_404(
@@ -118,31 +133,38 @@ class SignView(APIView):
             signing_log.certificate = certificate
             signing_log.certificate_name = certificate.name
 
-            timestamp_servers = list(
+            cmd.cert_path = certificate.cert_path
+            cmd.key_path = certificate.key_path
+
+            # PKCS #11
+            if certificate.is_pkcs11:
+                cmd.pkcs11 = OSSLSignCodePkcs11(
+                    provider=certificate.ossl_provider or config.OSSL_PROVIDER_PATH,
+                    module=certificate.pkcs11_module or config.PKCS11_MODULE_PATH,
+                )
+
+            cmd.timestamp_servers = list(
                 signing_profile.timestamp_servers.filter(is_enabled=True)
             )
-            random.shuffle(timestamp_servers)
+            cmd.shuffle_timestamp_servers()
 
-            file_name = f"{signing_log.id}-{slugify(file_basename)}.{file_extension}"
+            local_file_name = (
+                f"{signing_log.id}-{slugify(file_basename)}.{file_extension}"
+            )
 
-            in_path = config.STATE_DIRECTORY / "in" / file_name
-            signing_log.in_path = str(in_path)
+            cmd.in_path = config.STATE_DIRECTORY / "in" / local_file_name
 
-            with open(in_path, "wb") as on_disk:
+            # Write submitted file to local path
+            with open(cmd.in_path, "wb") as on_disk:
                 for chunk in incoming_file.chunks():
                     on_disk.write(chunk)
 
-            signing_log.in_file_size = os.path.getsize(in_path)
-            with open(in_path, "rb") as f:
-                signing_log.in_file_sha256 = hashlib.file_digest(
-                    f, "sha256"
-                ).hexdigest()
-
+            # Anti-virus scan
             clamscan = subprocess.run(
                 [
                     config.CLAMSCAN_PATH,
                     "--no-summary",
-                    in_path,
+                    cmd.in_path,
                 ],
                 timeout=30,
                 text=True,
@@ -152,61 +174,8 @@ class SignView(APIView):
             if clamscan.returncode != 0:
                 raise AVPositive(clamscan.stdout.strip())
 
-            out_path = config.STATE_DIRECTORY / "out" / file_name
-            signing_log.out_path = str(out_path)
-
-            # Build the osslsigncode command
-            osslsigncode_command = [
-                str(config.OSSLSIGNCODE_PATH),
-                "sign",
-                "-in",
-                str(in_path),
-                "-out",
-                str(out_path),
-            ]
-
-            # PKCS #11
             if certificate.is_pkcs11:
-                osslsigncode_command.extend(
-                    [
-                        "-login",
-                        "-provider",
-                        certificate.ossl_provider or config.OSSL_PROVIDER_PATH,
-                        "-pkcs11module",
-                        certificate.pkcs11_module or config.PKCS11_MODULE_PATH,
-                    ]
-                )
-
-            # Certificate
-            if certificate.is_pkcs11 and certificate.cert_path.startswith("pkcs11:"):
-                osslsigncode_command.append("-pkcs11cert")
-            else:
-                osslsigncode_command.append("-certs")
-
-            osslsigncode_command.append(certificate.cert_path)
-
-            # Key
-            osslsigncode_command.extend(["-key", certificate.key_path])
-
-            # Timestamp servers
-            osslsigncode_command.extend(
-                list(
-                    itertools.chain.from_iterable(
-                        ["-ts", ts.url] for ts in timestamp_servers
-                    )
-                )
-            )
-
-            # Signed content description
-            if description:
-                osslsigncode_command.extend(["-n", description])
-
-            if url:
-                osslsigncode_command.extend(["-i", url])
-
-            proc_env = os.environ.copy()
-
-            if certificate.is_pkcs11:
+                # Get pin for accessing the hardware token
                 request = {
                     "user": request.user.username,
                     "certificate": certificate.name,
@@ -225,33 +194,20 @@ class SignView(APIView):
                         f"Unexpected response result: {repr(resp['result'])}"
                     )
 
-                pwd = resp["code"]
-                proc_env["PKCS11_PIN"] = pwd
-                proc_env["PKCS11_FORCE_LOGIN"] = "1"
+                cmd.pin = resp["code"]
 
-            signing_log.osslsigncode_command = quote_cmd_hide_secrets(
-                osslsigncode_command
-            )
+            cmd.out_path = config.STATE_DIRECTORY / "out" / local_file_name
+            signing_log.osslsigncode_command = command_log_string(cmd.build_command())
+            result = cmd.run()
 
-            signresult = subprocess.run(
-                osslsigncode_command, capture_output=True, text=True, env=proc_env
-            )
-            signing_log.osslsigncode_returncode = signresult.returncode
-            signing_log.osslsigncode_stdout = signresult.stdout
-            signing_log.osslsigncode_stderr = signresult.stderr
-
-            if signresult.returncode != 0:
-                raise SigningError(f"osslsigncode error code: {signresult.returncode}")
-
-            signing_log.out_file_size = os.path.getsize(out_path)
-            with open(out_path, "rb") as f:
-                signing_log.out_file_sha256 = hashlib.file_digest(
-                    f, "sha256"
-                ).hexdigest()
+            if not result.success:
+                raise SigningError(f"osslsigncode error code: {result.returncode}")
 
             signing_log.result = SigningLog.Result.SUCCESS
             return FileResponse(
-                open(out_path, "rb"), as_attachment=True, filename=file_name
+                open(cmd.out_path, "rb"),
+                as_attachment=True,
+                filename=local_file_name,
             )
         except Exception as exc:
             signing_log.exception = repr(exc)
@@ -263,5 +219,26 @@ class SignView(APIView):
                 signing_log.result = SigningLog.Result.INTERNAL_ERROR
                 raise
         finally:
+            if cmd.in_path:
+                signing_log.in_path = str(cmd.in_path)
+                try:
+                    signing_log.in_file_size = os.path.getsize(cmd.in_path)
+                    signing_log.in_file_sha256 = sha256_file_path(cmd.in_path)
+                except Exception:
+                    pass
+
+            if cmd.out_path:
+                signing_log.out_path = str(cmd.out_path)
+                try:
+                    signing_log.out_file_size = os.path.getsize(cmd.out_path)
+                    signing_log.out_file_sha256 = sha256_file_path(cmd.out_path)
+                except Exception:
+                    pass
+
+            if result:
+                signing_log.osslsigncode_returncode = result.returncode
+                signing_log.osslsigncode_stdout = result.stdout
+                signing_log.osslsigncode_stderr = result.stderr
+
             signing_log.finished = timezone.now()
             signing_log.save()
