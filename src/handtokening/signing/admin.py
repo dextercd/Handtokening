@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
 
 from .models import (
     Certificate,
@@ -30,6 +31,9 @@ class SigningProfileAdmin(admin.ModelAdmin):
     list_display = ["name", "created", "updated"]
 
     inlines = (SigningProfileAccessInline,)
+
+
+UserAdmin.inlines += (SigningProfileAccessInline,)
 
 
 @admin.register(SigningLog)
