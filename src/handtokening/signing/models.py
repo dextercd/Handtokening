@@ -59,6 +59,21 @@ class SigningProfile(models.Model):
         related_name="signing_profiles",
     )
 
+    class VirusTotalScanSetting(models.TextChoices):
+        NO = "no", "No"
+        ATTEMPT = "attempt", "Attempt"
+        REQUIRED = "required", "Required"
+
+    vt_scan = models.CharField(
+        choices=VirusTotalScanSetting, default=VirusTotalScanSetting.NO
+    )
+    vt_max_bad_percent = models.IntegerField(default=100)
+    vt_fatal_engines = models.CharField(blank=True)
+
+    def get_vt_fatal_engines_list(self) -> list[str]:
+        engines = [e.strip() for e in self.vt_fatal_engines.split(",")]
+        return [e.lower() for e in engines if e]
+
     def __str__(self):
         return f"SigningProfile: {self.id} {self.name}"
 
@@ -108,7 +123,9 @@ class SigningLog(models.Model):
     osslsigncode_stdout = models.TextField(null=True, blank=True)
     osslsigncode_stderr = models.TextField(null=True, blank=True)
 
-    virus_total_url = models.URLField(null=True, blank=True)
+    vt_analysis = models.ForeignKey(
+        "VirusTotalAnalysis", null=True, blank=True, on_delete=models.SET_NULL
+    )
 
     class Result(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -124,7 +141,7 @@ class SigningLog(models.Model):
         CANCELLED = "cancelled", "Cancelled"
         PIN_TIMEOUT = "pin-timeout", "PIN Timeout"
 
-    result = models.CharField(choices=Result.choices)
+    result = models.CharField(choices=Result)
     exception = models.CharField(null=True, blank=True)
 
     class Meta:
@@ -134,3 +151,54 @@ class SigningLog(models.Model):
             models.Index(fields=["signing_profile_name", "-created"]),
         ]
         ordering = ["-created"]
+
+
+class VirusTotalAnalysis(models.Model):
+    sha256 = models.CharField()
+    date = models.DateTimeField()
+    analysis_time = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        verbose_name_plural = "VirusTotal analyses"
+
+
+class VirusTotalEngineResult(models.Model):
+    analysis = models.ForeignKey(
+        VirusTotalAnalysis, on_delete=models.CASCADE, related_name="results"
+    )
+
+    class Category(models.TextChoices):
+        CONFIRMED_TIMEOUT = "confirmed-timeout", "AV confirmed timeout"
+        TIMEOUT = "timeout", "AV timeout"
+        FAILURE = "failure", "AV failed analysis"
+        HARMLESS = "harmless", "AV thinks it's not malicious"
+        UNDETECTED = "undetected", "AV has no opinion"
+        SUSPICIOUS = "suspicious", "AV thinks it's suspicious"
+        MALICIOUS = "malicious", "AV thinks it's malicious"
+        TYPE_UNSUPPORTED = "type-unsupported", "Unsupported file type"
+
+    name = models.CharField()
+    category = models.CharField(choices=Category)
+    update = models.CharField()
+    version = models.CharField()
+    method = models.CharField()
+    result = models.CharField(null=True, blank=True)
+
+    bad_categories = [Category.SUSPICIOUS, Category.MALICIOUS]
+    good_categories = [Category.HARMLESS, Category.UNDETECTED]
+
+    @property
+    def good(self):
+        return self.category in [self.Category.HARMLESS, self.Category.UNDETECTED]
+
+    @property
+    def bad(self):
+        return self.category in [self.Category.SUSPICIOUS, self.Category.MALICIOUS]
+
+    def __str__(self):
+        return f"{self.name} {self.category}"
+
+    class Meta:
+        ordering = ["analysis_id", "name"]
+        indexes = [models.Index(fields=["analysis_id", "name"])]
+        verbose_name_plural = "VirusTotal engine results"

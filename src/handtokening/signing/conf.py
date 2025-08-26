@@ -41,5 +41,9 @@ class Configuration:
             getattr(settings, "STATE_DIRECTORY", None) or "/var/lib/handtokening"
         )
 
+    @cached_property
+    def VIRUS_TOTAL_API_KEY(self) -> str | None:
+        return getattr(settings, "VIRUS_TOTAL_API_KEY", None)
+
 
 config = Configuration()

@@ -11,11 +11,12 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 from .base import *
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -39,3 +40,11 @@ DATABASES = {
 
 STATE_DIRECTORY = "/tmp/handtokening"
 PIN_COMMS_LOCATION = "/tmp/handtokening"
+
+VIRUS_TOTAL_API_KEY = None
+
+if "VIRUS_TOTAL_API_KEY" in os.environ:
+    VIRUS_TOTAL_API_KEY = os.environ["VIRUS_TOTAL_API_KEY"]
+elif (BASE_DIR / "vt-api").exists():
+    with open(BASE_DIR / "vt-api") as f:
+        VIRUS_TOTAL_API_KEY = f.read().strip()

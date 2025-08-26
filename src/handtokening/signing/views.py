@@ -3,6 +3,7 @@ import os
 import random
 import hashlib
 from pathlib import Path
+import logging
 
 from django.core.files.uploadedfile import UploadedFile
 from django.http import FileResponse
@@ -24,6 +25,10 @@ from .osslsigncode import (
     OSSLSignCodeResult,
     command_log_string,
 )
+from .virustotal import vt_scan_file
+
+
+logger = logging.getLogger(__name__)
 
 
 SUPPORTED_FILE_EXTENSIONS = [
@@ -51,6 +56,10 @@ class SigningError(RuntimeError):
 
 class AVPositive(SigningError):
     result = SigningLog.Result.AV_POSITIVE
+
+
+class VirusTotalPositive(AVPositive):
+    pass
 
 
 class NoCertificates(SigningError):
@@ -102,6 +111,8 @@ class SignView(APIView):
             submitted_file_name=incoming_file.name,
         )
         signing_log.save()
+
+        in_path_sha256: str | None = None
 
         try:
             file_basename, _, file_extension = incoming_file.name.rpartition(".")
@@ -159,7 +170,9 @@ class SignView(APIView):
                 for chunk in incoming_file.chunks():
                     on_disk.write(chunk)
 
-            # Anti-virus scan
+            in_path_sha256 = sha256_file_path(cmd.in_path)
+
+            # ClamAV scan
             clamscan = subprocess.run(
                 [
                     config.CLAMSCAN_PATH,
@@ -172,7 +185,46 @@ class SignView(APIView):
             )
 
             if clamscan.returncode != 0:
-                raise AVPositive(clamscan.stdout.strip())
+                raise AVPositive(f"ClamAV: {clamscan.stdout.strip()}")
+
+            if signing_profile.vt_scan != SigningProfile.VirusTotalScanSetting.NO:
+                try:
+                    analysis = vt_scan_file(cmd.in_path, in_path_sha256)
+                    engine_results = list(analysis.results.all())
+
+                    signing_log.vt_analysis = analysis
+
+                    fatal_candidates = signing_profile.get_vt_fatal_engines_list()
+                    fatal_engines: list[str] = []
+                    for engine_result in engine_results:
+                        if (
+                            engine_result.bad
+                            and engine_result.name.lower() in fatal_candidates
+                        ):
+                            fatal_engines.append(str(engine_result))
+
+                    if fatal_engines:
+                        raise VirusTotalPositive(
+                            f"Detected as bad by required engine: {', '.join(fatal_engines)}"
+                        )
+
+                    bad_count = sum(r.bad for r in engine_results)
+                    percent_bad = bad_count / len(engine_results) * 100
+                    if percent_bad > signing_profile.vt_max_bad_percent:
+                        raise VirusTotalPositive(
+                            "Too many engines marked the code as bad"
+                        )
+                except Exception as exc:
+                    if isinstance(exc, SigningError):
+                        raise  # Pass on up
+                    elif (
+                        signing_profile.vt_scan
+                        == SigningProfile.VirusTotalScanSetting.REQUIRED
+                    ):
+                        raise  # VirusTotal analysis is required so abort signing process
+                    else:
+                        # Not required, so we log the error and continue
+                        logger.exception("VirusTotal scan error")
 
             if certificate.is_pkcs11:
                 # Get pin for accessing the hardware token
@@ -223,7 +275,7 @@ class SignView(APIView):
                 signing_log.in_path = str(cmd.in_path)
                 try:
                     signing_log.in_file_size = os.path.getsize(cmd.in_path)
-                    signing_log.in_file_sha256 = sha256_file_path(cmd.in_path)
+                    signing_log.in_file_sha256 = in_path_sha256
                 except Exception:
                     pass
 

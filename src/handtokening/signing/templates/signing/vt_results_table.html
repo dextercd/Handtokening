@@ -1,0 +1,21 @@
+<h2 id="results-heading" class="inline-heading">VirusTotal engine results ({{ bad_count }}/{{ results|length }})</h2>
+<table>
+    <tr>
+        <th>Engine name
+        <th>Category
+        <th>Update
+        <th>Version
+        <th>Method
+        <th>Result
+    </tr>
+    {% for result in results %}
+    <tr>
+        <td>{{ result.name }}
+        <td{% if result.bad %} style="font-weight: bold; color: var(--error-fg)"{% endif %}>{{ result.category }}
+        <td>{{ result.update }}
+        <td>{{ result.version }}
+        <td>{{ result.method }}
+        <td{% if result.bad %} style="font-weight: bold; color: var(--error-fg)"{% endif %}>{{ result.result|default:"-" }}
+    </tr>
+    {% endfor %}
+</table>
