@@ -1,6 +1,6 @@
 [project]
 name = "handtokening"
-version = "0.3.1"
+version = "0.3.2"
 description = "Code-signing server built in Python/Django"
 readme = "README.md"
 authors = [
