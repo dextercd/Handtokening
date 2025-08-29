@@ -86,7 +86,7 @@ def vt_scan_file(path: str | Path, sha256: str) -> VirusTotalAnalysis:
 
         # It'll take some time for the analysis to complete. Sleep for some extra
         # time before fetching a new analysis object.
-        sleep(25)
+        sleep(15)
 
         while analysis.get("status") != "completed":
             sleep(20)
