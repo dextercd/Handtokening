@@ -158,6 +158,9 @@ class VirusTotalAnalysis(models.Model):
     date = models.DateTimeField()
     analysis_time = models.FloatField(null=True, blank=True)
 
+    def __str__(self):
+        return f"VirusTotalAnalysis: {self.sha256[:16]} {self.date}"
+
     class Meta:
         verbose_name_plural = "VirusTotal analyses"
 

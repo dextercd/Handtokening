@@ -104,6 +104,9 @@ class SigningLogAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
         ),
     ]
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("vt_analysis")
+
     def get_fieldsets(self, request, obj):
         fieldsets = self.fieldsets.copy()
         if obj.vt_analysis:
@@ -114,6 +117,7 @@ class SigningLogAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
                         "classes": ["collapse"],
                         "fields": [
                             "vt_url",
+                            "vt_analysis",
                             "vt_engine_results",
                         ],
                     },
@@ -192,12 +196,10 @@ class VirusTotalAnalysisAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
         return f"{obj.bad_count}/{obj.total_count}"
 
     def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        queryset = queryset.annotate(
+        return super().get_queryset(request).annotate(
             bad_count=Count(
                 "results",
                 filter=Q(results__category__in=VirusTotalEngineResult.bad_categories),
             ),
             total_count=Count("results"),
         )
-        return queryset
