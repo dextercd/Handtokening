@@ -60,7 +60,7 @@ def vt_scan_file(path: str | Path, sha256: str) -> VirusTotalAnalysis:
     )
     if (
         existing_analysis
-        and datetime.now(timezone.utc) - existing_analysis.date < ANALYSIS_REUSE_TIME
+        and existing_analysis.get_age() < ANALYSIS_REUSE_TIME
     ):
         return existing_analysis
 

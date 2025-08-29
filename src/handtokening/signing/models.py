@@ -1,8 +1,10 @@
+from datetime import timedelta
 from functools import lru_cache
 import importlib.metadata
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from handtokening.clients.models import Client
 
@@ -160,6 +162,10 @@ class VirusTotalAnalysis(models.Model):
 
     def __str__(self):
         return f"VirusTotalAnalysis: {self.sha256[:16]} {self.date}"
+
+    def get_age(self, now=None) -> timedelta:
+        now = now or timezone.now()
+        return now - self.date
 
     class Meta:
         verbose_name_plural = "VirusTotal analyses"
