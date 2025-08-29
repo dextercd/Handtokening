@@ -189,7 +189,7 @@ class VirusTotalEngineResult(models.Model):
     name = models.CharField()
     category = models.CharField(choices=Category)
     update = models.CharField()
-    version = models.CharField()
+    version = models.CharField(null=True)  # Can be null if scan fails
     method = models.CharField()
     result = models.CharField(null=True, blank=True)
 
