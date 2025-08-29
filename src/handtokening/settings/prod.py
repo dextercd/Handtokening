@@ -3,12 +3,16 @@ from pathlib import Path
 
 from .base import *
 
+DEBUG = False
+
 home = Path(environ["HOME"])
 
 with open(home / "data/django-secret") as f:
     SECRET_KEY = f.read().strip()
 
-DEBUG = False
+if (vt_path := home / "data/vt-api").exists():
+    with open(vt_path) as f:
+        VIRUS_TOTAL_API_KEY = f.read().strip()
 
 if "ALLOWED_HOSTS" in environ:
     ALLOWED_HOSTS = environ["ALLOWED_HOSTS"].split(",")
