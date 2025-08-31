@@ -58,10 +58,7 @@ def vt_scan_file(path: str | Path, sha256: str) -> VirusTotalAnalysis:
     existing_analysis = (
         VirusTotalAnalysis.objects.filter(sha256=sha256).order_by("-date").first()
     )
-    if (
-        existing_analysis
-        and existing_analysis.get_age() < ANALYSIS_REUSE_TIME
-    ):
+    if existing_analysis and existing_analysis.get_age() < ANALYSIS_REUSE_TIME:
         return existing_analysis
 
     with get_configured_client() as client:

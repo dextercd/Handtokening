@@ -196,10 +196,16 @@ class VirusTotalAnalysisAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
         return f"{obj.bad_count}/{obj.total_count}"
 
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            bad_count=Count(
-                "results",
-                filter=Q(results__category__in=VirusTotalEngineResult.bad_categories),
-            ),
-            total_count=Count("results"),
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                bad_count=Count(
+                    "results",
+                    filter=Q(
+                        results__category__in=VirusTotalEngineResult.bad_categories
+                    ),
+                ),
+                total_count=Count("results"),
+            )
         )
