@@ -1,12 +1,16 @@
-import subprocess
+import hashlib
+import logging
 import os
 import random
-import hashlib
 from pathlib import Path
-import logging
+import string
+import subprocess
+import tempfile
+import base64
 
+from asn1crypto import cms
 from django.core.files.uploadedfile import UploadedFile
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -16,15 +20,16 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import SigningProfile, SigningLog
 from .conf import config
 from .external_value import ExternalValue
+from .models import SigningProfile, SigningLog
 from .osslsigncode import (
     OSSLSignCodeCommand,
     OSSLSignCodePkcs11,
     OSSLSignCodeResult,
     command_log_string,
 )
+from .serializers import SigningRequestSerializer
 from .virustotal import vt_scan_file
 
 
@@ -84,20 +89,28 @@ def sha256_file_path(path: str | Path) -> str:
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
+_random_chars = string.ascii_letters + string.digits
+
+
+def random_file_name() -> Path:
+    return Path(tempfile.gettempdir()) / "".join(random.choices(_random_chars, k=10))
+
+
 class SignView(APIView):
     parser_classes = [FileUploadParser]
 
     def post(self, request: Request, format=None):
-        signing_profile_name = request.query_params["signing-profile"]
-        description = request.query_params.get("description") or None
-        url = request.query_params.get("url") or None
+        query_serializer = SigningRequestSerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+        query = query_serializer.validated_data
+
         incoming_file: UploadedFile = request.data["file"]
 
         result: OSSLSignCodeResult | None = None
         cmd = OSSLSignCodeCommand()
         cmd.program_path = config.OSSLSIGNCODE_PATH
-        cmd.description = description
-        cmd.url = url
+        cmd.description = query.get("description")
+        cmd.url = query.get("url")
 
         ip, _ = get_client_ip(request)
         signing_log = SigningLog(
@@ -105,9 +118,9 @@ class SignView(APIView):
             user_agent=request.META.get("HTTP_USER_AGENT"),
             client=request.user.client,
             client_name=request.user.username,
-            signing_profile_name=signing_profile_name,
-            description=description,
-            url=url,
+            signing_profile_name=query["signing-profile"],
+            description=query.get("description"),
+            url=query.get("url"),
             submitted_file_name=incoming_file.name,
         )
         signing_log.save()
@@ -125,7 +138,7 @@ class SignView(APIView):
             signing_profile: SigningProfile = get_object_or_404(
                 SigningProfile.objects.filter(
                     users_with_access__id__contains=request.user.id,
-                    name=signing_profile_name,
+                    name=query["signing-profile"],
                 )
             )
             signing_log.signing_profile = signing_profile
@@ -231,7 +244,7 @@ class SignView(APIView):
                 request = {
                     "user": request.user.username,
                     "certificate": certificate.name,
-                    "description": description or "No description",
+                    "description": query.get("description") or "No description",
                 }
                 with ExternalValue(request) as external:
                     try:
@@ -256,11 +269,44 @@ class SignView(APIView):
                 raise SigningError(f"osslsigncode error code: {result.returncode}")
 
             signing_log.result = SigningLog.Result.SUCCESS
-            return FileResponse(
-                open(cmd.out_path, "rb"),
-                as_attachment=True,
-                filename=local_file_name,
-            )
+
+            if query["response-type"] == "complete":
+                return FileResponse(
+                    open(cmd.out_path, "rb"),
+                    as_attachment=True,
+                    filename=local_file_name,
+                )
+            elif query["response-type"] == "pkcs7":
+                pkcs7_temp_path = random_file_name()
+                subprocess.run(
+                    [
+                        config.OSSLSIGNCODE_PATH,
+                        "extract-signature",
+                        "-in",
+                        cmd.out_path,
+                        "-out",
+                        pkcs7_temp_path,
+                    ],
+                    check=True,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                with open(pkcs7_temp_path, "rb") as f:
+                    pkcs7_data = f.read()
+                pkcs7_temp_path.unlink()
+
+                signer_info = cms.ContentInfo.load(pkcs7_data)["content"][
+                    "signer_infos"
+                ][0]
+                signature = base64.b64encode(signer_info["signature"].native)
+                return HttpResponse(
+                    pkcs7_data,
+                    content_type="application/pkcs7-signature",
+                    headers={
+                        "ht-signed": signature,
+                    },
+                )
         except Exception as exc:
             signing_log.exception = repr(exc)
 
