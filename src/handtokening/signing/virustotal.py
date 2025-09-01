@@ -3,6 +3,7 @@ from time import sleep, time
 from pathlib import Path
 
 import vt
+from vt.utils import make_sync as vt_make_sync
 
 from .models import VirusTotalAnalysis, VirusTotalEngineResult
 from .conf import config
@@ -74,7 +75,9 @@ def vt_scan_file(path: str | Path, sha256: str) -> VirusTotalAnalysis:
 
         # Need to (re)scan
         if existing_file:
-            analysis = client.post_object(f"/files/{sha256}/analyse")
+            analysis = vt_make_sync(
+                client._response_to_object(client.post(f"/files/{sha256}/analyse"))
+            )
         else:
             with open(path, "rb") as f:
                 analysis = client.scan_file(f)
