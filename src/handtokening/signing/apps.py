@@ -32,6 +32,9 @@ class CertificatesConfig(AppConfig):
         try_create_dir(config.PIN_COMMS_LOCATION / "requests", mode=0o775)
         try_create_dir(config.PIN_COMMS_LOCATION / "responses", mode=0o775)
 
+        # TODO: When gunicorn --preload is not enabled, one worker may delete
+        # the request/response files of another worker. Especially relevant when
+        # using socket activation.
         try_clear_dir(config.PIN_COMMS_LOCATION / "requests")
         try_clear_dir(config.PIN_COMMS_LOCATION / "responses")
 
