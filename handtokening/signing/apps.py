@@ -15,14 +15,6 @@ def try_create_dir(path: Path, mode=0o755):
         logging.error(f"Tried to create path '{path}' but got error: {exc}")
 
 
-def try_clear_dir(path: Path):
-    for r in path.glob("*"):
-        try:
-            r.unlink()
-        except Exception as exc:
-            logging.error(f"Tried to delete '{r}' but got error: {exc}")
-
-
 class CertificatesConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "handtokening.signing"
@@ -32,11 +24,9 @@ class CertificatesConfig(AppConfig):
         try_create_dir(config.PIN_COMMS_LOCATION / "requests", mode=0o775)
         try_create_dir(config.PIN_COMMS_LOCATION / "responses", mode=0o775)
 
-        # TODO: When gunicorn --preload is not enabled, one worker may delete
-        # the request/response files of another worker. Especially relevant when
-        # using socket activation.
-        try_clear_dir(config.PIN_COMMS_LOCATION / "requests")
-        try_clear_dir(config.PIN_COMMS_LOCATION / "responses")
+        # Clearing the requests/responses directory should be handled by the
+        # service runner. E.g., via a startup script or systemd's
+        # RuntimeDirectory= option
 
         try_create_dir(config.STATE_DIRECTORY / "in")
         try_create_dir(config.STATE_DIRECTORY / "out")
