@@ -48,7 +48,7 @@ class ExternalValue:
         except Exception:
             pass
 
-    def read(self, timeout=0) -> None | dict:
+    def try_read(self, timeout=0) -> None | dict:
         read_ready, _, _ = select.select([self.socket], [], [], timeout)
         if not read_ready:
             return None
@@ -57,7 +57,9 @@ class ExternalValue:
 
         return response
 
-    def read_for(self, timeout=0) -> dict:
-        result = self.read(timeout)
+    def read_for(self, timeout) -> dict:
+        result = self.try_read(timeout)
         if result is None:
             raise TimeoutError("No response received in time")
+        else:
+            return result

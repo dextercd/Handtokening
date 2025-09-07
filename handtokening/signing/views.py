@@ -248,7 +248,7 @@ class SignView(APIView):
                 }
                 with ExternalValue(request) as external:
                     try:
-                        resp = external.read(60)
+                        resp = external.read_for(60)
                     except TimeoutError:
                         raise PinTimeout("Didn't receive pin on time")
 
