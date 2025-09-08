@@ -5,12 +5,14 @@ from .base import *
 
 DEBUG = False
 
+state_dir = Path(environ["STATE_DIRECTORY"])
+config_dir = Path(environ["CONFIGURATION_DIRECTORY"])
 home = Path(environ["HOME"])
 
-with open(home / "data/django-secret") as f:
+with open(state_dir / "django-secret") as f:
     SECRET_KEY = f.read().strip()
 
-if (vt_path := home / "data/vt-api").exists():
+if (vt_path := config_dir / "vt-api").exists():
     with open(vt_path) as f:
         VIRUS_TOTAL_API_KEY = f.read().strip()
 
@@ -20,7 +22,7 @@ if "ALLOWED_HOSTS" in environ:
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": home / "data/db.sqlite3",
+        "NAME": state_dir / "db.sqlite3",
     }
 }
 
@@ -46,9 +48,6 @@ if "IPWARE_META_PRECEDENCE_ORDER" in environ:
 else:
     IPWARE_META_PRECEDENCE_ORDER = ["REMOTE_ADDR"]
 
-PIN_COMMS_LOCATION = "/run/handtokening"
+PIN_COMMS_LOCATION = environ.get("RUNTIME_DIRECTORY")
 
-if "STATE_DIRECTORY" in environ:
-    STATE_DIRECTORY = environ["STATE_DIRECTORY"]
-else:
-    STATE_DIRECTORY = "/var/lib/handtokening"
+STATE_DIRECTORY = str(state_dir)
