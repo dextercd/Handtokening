@@ -8,11 +8,17 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "asn1crypto>=1.5.1",
-    "django>=5.2.5",
-    "django-ipware>=7.0.1",
-    "djangorestframework>=3.16.1",
-    "vt-py>=0.21.0",
+    "asn1crypto~=1.5",
+    "django~=5.2",
+    "django-ipware~=7.0",
+    "djangorestframework~=3.16",
+    "vt-py~=0.21",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "ruff>=0.12.9",
 ]
 
 [build-system]
@@ -21,12 +27,6 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
-
-[dependency-groups]
-dev = [
-    "black>=25.1.0",
-    "ruff>=0.12.9",
-]
 
 [tool.ruff.lint.per-file-ignores]
 "**/handtokening/settings/*.py" = ["F403"]
