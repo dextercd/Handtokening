@@ -52,3 +52,5 @@ if "VIRUS_TOTAL_API_KEY" in os.environ:
 elif (BASE_DIR / "vt-api").exists():
     with open(BASE_DIR / "vt-api") as f:
         VIRUS_TOTAL_API_KEY = f.read().strip()
+
+TEST_CERTIFICATE_DIRECTORY = BASE_DIR / "certs"

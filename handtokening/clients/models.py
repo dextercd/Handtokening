@@ -1,5 +1,6 @@
-import secrets
+from datetime import datetime
 import hashlib
+import secrets
 
 from django.conf import settings
 from django.db import models
@@ -35,7 +36,7 @@ class Client(models.Model):
     last_secret_rotated = models.DateTimeField(default=timezone.now)
     rotate_every = models.DurationField(null=True)
 
-    def do_scheduled_rotate(self, now=None):
+    def do_scheduled_rotate(self, now: datetime | None = None):
         now = now or timezone.now()
         if now > self.last_secret_rotated + self.rotate_every * 2:
             self.secret1 = self.secret2 = None

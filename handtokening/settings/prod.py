@@ -50,4 +50,5 @@ else:
 
 PIN_COMMS_LOCATION = environ.get("RUNTIME_DIRECTORY")
 
-STATE_DIRECTORY = str(state_dir)
+STATE_DIRECTORY = state_dir
+TEST_CERTIFICATE_DIRECTORY = state_dir / "certs"

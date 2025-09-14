@@ -30,3 +30,4 @@ class CertificatesConfig(AppConfig):
 
         try_create_dir(config.STATE_DIRECTORY / "in")
         try_create_dir(config.STATE_DIRECTORY / "out")
+        try_create_dir(config.TEST_CERTIFICATE_DIRECTORY)

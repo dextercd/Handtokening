@@ -6,7 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# Dev files
 *db.sqlite3
+certs/
 
 # Virtual environments
 .venv

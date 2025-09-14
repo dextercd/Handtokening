@@ -42,5 +42,12 @@ class Configuration:
     def VIRUS_TOTAL_API_KEY(self) -> str | None:
         return getattr(settings, "VIRUS_TOTAL_API_KEY", None)
 
+    @cached_property
+    def TEST_CERTIFICATE_DIRECTORY(self) -> Path:
+        return Path(
+            getattr(settings, "TEST_CERTIFICATE_DIRECTORY", None)
+            or self.STATE_DIRECTORY / "certs"
+        )
+
 
 config = Configuration()
