@@ -20,10 +20,7 @@ class Configuration:
 
     @cached_property
     def OSSLSIGNCODE_PATH(self) -> str:
-        return (
-            getattr(settings, "OSSLSIGNCODE_PATH", None)
-            or "/usr/local/bin/osslsigncode"
-        )
+        return getattr(settings, "OSSLSIGNCODE_PATH", None) or "osslsigncode"
 
     @cached_property
     def CLAMSCAN_PATH(self) -> str:
