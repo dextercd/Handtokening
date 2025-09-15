@@ -1,0 +1,86 @@
+import base64
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.utils import timezone
+
+from handtokening.clients.models import Client
+
+
+User = get_user_model()
+
+
+def basic_auth(user, pwd):
+    return "Basic " + base64.b64encode(f"{user}:{pwd}".encode()).decode()
+
+
+class MiddlewareTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create(username="signer")
+        cls.sign_client = Client.objects.create(
+            user=cls.user, rotate_every=timedelta(days=1)
+        )
+
+    def test_client_doesnt_exist(self):
+        response = self.client.get(
+            "/",
+            headers={
+                "authorization": basic_auth(
+                    "notexist", "htkey,_L5t_hyeNjvHkiNkRudUfDhVYy0"
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_wrong_password(self):
+        response = self.client.get(
+            "/",
+            headers={
+                "authorization": basic_auth(
+                    "signer", "htkey,_L5t_hyeNjvHkiNkRudUfDhVYy0"
+                )
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_right_password(self):
+        self.sign_client.set_new_secret()
+        secret = self.sign_client.new_secret
+        self.sign_client.save()
+
+        response = self.client.get(
+            "/",
+            headers={"authorization": basic_auth("signer", secret)},
+        )
+
+        # Authentication successful, but no matching route so we expect 404
+        self.assertEqual(response.status_code, 404)
+
+    def test_one_rotate(self):
+        self.sign_client.set_new_secret()
+        secret = self.sign_client.new_secret
+        self.sign_client.last_secret_rotated = timezone.now() - timedelta(days=1)
+        self.sign_client.save()
+
+        response = self.client.get(
+            "/",
+            headers={"authorization": basic_auth("signer", secret)},
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_two_rotates(self):
+        self.sign_client.set_new_secret()
+        secret = self.sign_client.new_secret
+        self.sign_client.last_secret_rotated = timezone.now() - timedelta(days=2)
+        self.sign_client.save()
+
+        response = self.client.get(
+            "/",
+            headers={"authorization": basic_auth("signer", secret)},
+        )
+
+        # Secret should no longer work after two rotates
+        self.assertEqual(response.status_code, 403)
