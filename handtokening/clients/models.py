@@ -34,7 +34,7 @@ class Client(models.Model):
         self.last_secret_rotated = timezone.now()
 
     last_secret_rotated = models.DateTimeField(default=timezone.now)
-    rotate_every = models.DurationField(null=True)
+    rotate_every = models.DurationField()
 
     def do_scheduled_rotate(self, now: datetime | None = None):
         now = now or timezone.now()
