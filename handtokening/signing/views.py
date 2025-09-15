@@ -313,7 +313,7 @@ class SignView(APIView):
 
             if isinstance(exc, SigningError):
                 signing_log.result = exc.result
-                return Response({"message": str(exc)}, status=400)
+                return Response({"detail": str(exc)}, status=400)
             else:
                 signing_log.result = SigningLog.Result.INTERNAL_ERROR
                 raise
