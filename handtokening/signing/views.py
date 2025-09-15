@@ -129,6 +129,7 @@ class SignView(APIView):
 
         try:
             file_basename, _, file_extension = incoming_file.name.rpartition(".")
+            file_extension = file_extension.lower()
 
             if file_extension not in SUPPORTED_FILE_EXTENSIONS:
                 raise UnsupportedExtension(
