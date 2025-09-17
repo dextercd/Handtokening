@@ -19,6 +19,9 @@ if (vt_path := config_dir / "vt-api").exists():
 if "ALLOWED_HOSTS" in environ:
     ALLOWED_HOSTS = environ["ALLOWED_HOSTS"].split(",")
 
+if "CSRF_TRUSTED_ORIGINS" in environ:
+    CSRF_TRUSTED_ORIGINS = environ["CSRF_TRUSTED_ORIGINS"].split(",")
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
