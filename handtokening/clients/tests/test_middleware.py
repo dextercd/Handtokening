@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from handtokening.clients.models import Client
+from handtokening.clients.models import Client, ClientSecret
 
 
 User = get_user_model()
@@ -20,7 +20,7 @@ class MiddlewareTest(TestCase):
     def setUpTestData(cls):
         cls.user = User.objects.create(username="signer")
         cls.sign_client = Client.objects.create(
-            user=cls.user, rotate_every=timedelta(days=1)
+            user=cls.user, default_secret_duration=timedelta(days=1)
         )
 
     def test_client_doesnt_exist(self):
@@ -58,29 +58,14 @@ class MiddlewareTest(TestCase):
         # Authentication successful, but no matching route so we expect 404
         self.assertEqual(response.status_code, 404)
 
-    def test_one_rotate(self):
+    def test_secret_expiry(self):
         self.sign_client.set_new_secret()
         secret = self.sign_client.new_secret
-        self.sign_client.last_secret_rotated = timezone.now() - timedelta(days=1)
-        self.sign_client.save()
+
+        ClientSecret.objects.update(valid_until=timezone.now())
 
         response = self.client.get(
             "/",
             headers={"authorization": basic_auth("signer", secret)},
         )
-
-        self.assertEqual(response.status_code, 404)
-
-    def test_two_rotates(self):
-        self.sign_client.set_new_secret()
-        secret = self.sign_client.new_secret
-        self.sign_client.last_secret_rotated = timezone.now() - timedelta(days=2)
-        self.sign_client.save()
-
-        response = self.client.get(
-            "/",
-            headers={"authorization": basic_auth("signer", secret)},
-        )
-
-        # Secret should no longer work after two rotates
         self.assertEqual(response.status_code, 403)

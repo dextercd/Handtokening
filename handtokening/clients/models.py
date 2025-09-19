@@ -1,4 +1,3 @@
-from datetime import datetime
 import hashlib
 import secrets
 
@@ -20,37 +19,34 @@ class Client(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, primary_key=True, on_delete=models.CASCADE
     )
-
-    # secret1 shifts to secret2 after now() > last_rotate + secret_lifetime/2
-    # a new secret is placed in secret1 and the old secret2 is discarded
-    secret1 = models.CharField(null=True)
-    secret2 = models.CharField(null=True)
+    default_secret_duration = models.DurationField()
 
     new_secret = None
 
+    def __str__(self):
+        if Client.user.is_cached(self):
+            return self.user.username
+        elif hasattr(self, "username"):
+            # For when added with .annotate(username=F("user__username"))
+            return self.username
+        else:
+            return str(self.pk)
+
     def set_new_secret(self):
         self.new_secret = new_secret()
-        self.secret1 = encode_secret(self.new_secret)
-        self.last_secret_rotated = timezone.now()
-
-    last_secret_rotated = models.DateTimeField(default=timezone.now)
-    rotate_every = models.DurationField()
-
-    def do_scheduled_rotate(self, now: datetime | None = None):
-        now = now or timezone.now()
-        if now > self.last_secret_rotated + self.rotate_every * 2:
-            self.secret1 = self.secret2 = None
-            self.last_secret_rotated = now
-            return True
-        elif now > self.last_secret_rotated + self.rotate_every:
-            self.secret2 = self.secret1
-            self.secret1 = None
-            self.last_secret_rotated = now
-            return True
-        else:
-            return False
-
-    # TODO: Workload OIDC option
+        now = timezone.now()
+        ClientSecret.objects.create(
+            client=self,
+            secret=encode_secret(self.new_secret),
+            created=now,
+            valid_for=self.default_secret_duration,
+            valid_until=now + self.default_secret_duration,
+        )
 
 
-# Certificate <- Certificate Group Member -> SigningProfile <- Certificate Group Access -> Client
+class ClientSecret(models.Model):
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    secret = models.CharField(null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    valid_for = models.DurationField()
+    valid_until = models.DateTimeField()

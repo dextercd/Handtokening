@@ -31,7 +31,7 @@ class Command(BaseCommand):
         client, _ = Client.objects.get_or_create(
             user=user,
             defaults={
-                "rotate_every": timedelta(days=2),
+                "default_secret_duration": timedelta(days=2),
             },
         )
 

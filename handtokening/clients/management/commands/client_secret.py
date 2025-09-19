@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from handtokening.clients.models import Client
+from handtokening.clients.models import Client, ClientSecret
 
 
 class Command(BaseCommand):
@@ -10,7 +10,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("name")
 
-        parser.set_defaults(mode="rotate")
+        parser.set_defaults(mode="new_secret")
 
         parser.add_argument(
             "--clear-secrets",
@@ -25,14 +25,12 @@ class Command(BaseCommand):
         if not client:
             raise CommandError(f"Couldn't find client with username {kwargs['name']}")
 
-        if kwargs["mode"] == "rotate":
+        if kwargs["mode"] == "new_secret":
             client.set_new_secret()
             client.save()
             print(f"New secret: {client.new_secret}")
         elif kwargs["mode"] == "clear":
-            client.secret1 = None
-            client.secret2 = None
-            client.save()
+            ClientSecret.objects.filter(client=client).delete()
             print("Secrets cleared")
         else:
             raise CommandError(f"Unknown mode '{kwargs['mode']}'")

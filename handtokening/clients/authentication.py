@@ -5,9 +5,10 @@ import hmac
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
+from django.utils import timezone
 from rest_framework import authentication
 
-from .models import new_secret, encode_secret
+from .models import ClientSecret, new_secret, encode_secret
 
 
 User = get_user_model()
@@ -26,6 +27,9 @@ class ClientAuthMiddleware:
     def __call__(self, request: HttpRequest):
         auth: str = request.META.get("HTTP_AUTHORIZATION") or ""
         if auth.startswith("Basic "):
+            # Delete all expired client secrets
+            ClientSecret.objects.filter(valid_until__lt=timezone.now()).delete()
+
             name, _, text_pwd = (
                 b64decode(auth.removeprefix("Basic ").strip()).decode().partition(":")
             )
@@ -36,22 +40,12 @@ class ClientAuthMiddleware:
             )
             encoded_pwd = encode_secret(text_pwd)
 
-            # Prevent timing information leak with fake pass check
-            secret1 = secret2 = fake_pass()
-
             if user:
-                if user.client.do_scheduled_rotate():
-                    user.client.save()
+                secrets = list(ClientSecret.objects.filter(client=user.client))
+            else:
+                secrets = []
 
-                if user.client.secret1:
-                    secret1 = user.client.secret1
-                if user.client.secret2:
-                    secret2 = user.client.secret2
-
-            check1 = hmac.compare_digest(encoded_pwd, secret1)
-            check2 = hmac.compare_digest(encoded_pwd, secret2)
-
-            if check1 or check2:
+            if any(hmac.compare_digest(encoded_pwd, s.secret) for s in secrets):
                 # TODO: revoke credentials if http
                 request.user = user
             else:
