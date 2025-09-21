@@ -1,0 +1,4 @@
+ht_web_user: www-data
+
+ht_set_up_clamav: true
+ht_clam_av_run_freshclam: false

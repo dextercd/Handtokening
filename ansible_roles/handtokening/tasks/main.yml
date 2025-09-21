@@ -1,0 +1,192 @@
+---
+- name: Set up variables
+  ansible.builtin.include_tasks: variables.yml
+  tags:
+    - always
+
+- name: Make handtokening user
+  become: true
+  ansible.builtin.user:
+    name: '{{ ht_user }}'
+    shell: /bin/nologin
+    system: true
+
+- name: Run Arch Linux setup tasks
+  ansible.builtin.include_tasks: setup-Archlinux.yml
+  when: ansible_os_family == 'Archlinux'
+
+- name: Run Debian setup tasks
+  ansible.builtin.include_tasks: setup-Debian.yml
+  when: ansible_os_family == 'Debian'
+
+- name: Run ClamAV setup tasks
+  ansible.builtin.include_tasks: setup-ClamAV.yml
+  when: ht_set_up_clamav
+
+- name: Allow http access to home and static
+  become: true
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: directory
+    owner: '{{ ht_user }}'
+    group: '{{ ht_web_user }}'
+    mode: '0770'
+  loop:
+    - '{{ ht_home }}'
+    - '{{ ht_home }}/static'
+
+- name: Configure pollkit for handtokening pcsc access
+  become: true
+  ansible.builtin.template:
+    src: 'templates/handtokening-pcsc.rules.j2'
+    dest: '/etc/polkit-1/rules.d/handtokening-pcsc.rules'
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create service directories
+  become: true
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: directory
+    owner: '{{ ht_user }}'
+    group: '{{ ht_user }}'
+    mode: '0755'
+  loop:
+    - '/var/lib/{{ ht_service }}'
+    - '/etc/{{ ht_service }}'
+
+- name: Generate django secret
+  become: true
+  become_user: '{{ ht_user }}'
+  ansible.builtin.shell:
+    cmd: umask 077; openssl rand -base64 50 >"/var/lib/{{ ht_service }}/django-secret"
+    creates: '/var/lib/{{ ht_service }}/django-secret'
+
+- name: Create db.sqlite3 with proper mode/owner
+  become: true
+  ansible.builtin.file:
+    path: '/var/lib/{{ ht_service }}/db.sqlite3'
+    state: touch
+    access_time: preserve
+    modification_time: preserve
+    owner: '{{ ht_user }}'
+    group: '{{ ht_user }}'
+    mode: '0640'
+
+- name: Install systemd service and socket files
+  become: true
+  ansible.builtin.template:
+    src: '{{ item }}'
+    dest: "/etc/systemd/system/{{ ht_service }}.{{ (item | regex_search('([^/.]*)\\.j2', '\\1') | first) }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - templates/handtokening.service.j2
+    - templates/handtokening.socket.j2
+  register: systemd_files
+  notify: Stop handtokening service
+
+- name: Write Handtokening config
+  become: true
+  ansible.builtin.template:
+    src: templates/env.j2
+    dest: '{{ ht_env_file }}'
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Stop handtokening service
+
+- name: Make VirusTotal API file
+  become: true
+  ansible.builtin.copy:
+    content: '{{ virus_total_api_key }}'
+    dest: '/etc/{{ ht_service }}/vt-api'
+    owner: '{{ ht_user }}'
+    group: '{{ ht_user }}'
+    mode: '0600'
+  when: virus_total_api_key is defined
+  notify: Stop handtokening service
+
+- name: Remove VirusTotal API file
+  become: true
+  ansible.builtin.file:
+    path: '/etc/{{ ht_service }}/vt-api'
+    state: absent
+  when: virus_total_api_key is not defined
+  notify: Stop handtokening service
+
+- name: Perform systemd daemon reload
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: systemd_files is changed
+
+- name: Install startup script
+  become: true
+  ansible.builtin.template:
+    src: 'templates/start.sh.j2'
+    dest: '{{ ht_home }}/start.sh'
+    owner: root
+    group: root
+    mode: '0755'
+  notify: Stop handtokening service
+
+- name: Install run-ht script
+  become: true
+  ansible.builtin.template:
+    src: 'templates/run-ht.j2'
+    dest: '{{ ht_home }}/run-ht'
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Make venv
+  become: true
+  become_user: '{{ ht_user }}'
+  ansible.builtin.command:
+    cmd: python3 -m venv venv
+    chdir: '{{ ht_home }}'
+    creates: '{{ ht_home }}/venv'
+
+- name: Install packages
+  become: true
+  become_user: '{{ ht_user }}'
+  ansible.builtin.pip:
+    virtualenv: '{{ ht_home }}/venv'
+    name:
+      - gunicorn
+      - '{{ ht_package }}'
+  register: pip_install
+  notify: Stop handtokening service
+
+- name: Run django collectstatic
+  become: true
+  environment:
+    DJANGO_SETTINGS_MODULE: handtokening.settings.prod
+  ansible.builtin.command:
+    argv:
+      - '{{ ht_home }}/run-ht'
+      - --wait
+      - --collect
+      - --service-type=exec
+      - "{{ ht_home }}/venv/bin/django-admin"
+      - collectstatic
+      - --no-input
+  when: pip_install is changed
+
+- name: Enable handtokening socket
+  become: true
+  ansible.builtin.systemd_service:
+    name: '{{ ht_service }}.socket'
+    state: started
+    enabled: true
+
+- name: Set up Handtokening site in NGINX
+  ansible.builtin.include_tasks:
+    file: nginx.yml
+    apply:
+      tags: nginx
+  when: ht_nginx
+  tags: nginx

@@ -1,0 +1,6 @@
+ht_nginx_config_path: '{{ ht_nginx_config_dir }}/{{ ht_nginx_config_name }}'
+
+ht_set_up_clamav: false
+
+ht_nginx_location_url_path: '{{ "".join(["/", ht_path, "/"]) | regex_replace("/+", "/") }}'
+ht_script_name: '{{ ht_nginx_location_url_path.rstrip("/") }}'

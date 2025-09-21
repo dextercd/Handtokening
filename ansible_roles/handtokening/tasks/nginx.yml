@@ -1,0 +1,16 @@
+- name: Create NGINX handtokening config
+  become: true
+  ansible.builtin.template:
+    src: nginx/handtokening.conf.j2
+    dest: '{{ ht_nginx_config_path }}'
+    owner: root
+    group: root
+    mode: '0644'
+  register: nginx_config
+
+- name: Notify NGINX reload handler
+  ansible.builtin.debug:
+    msg: "Do notify"
+  when: nginx_config is changed and ht_nginx_reload_handler is truthy
+  changed_when: true
+  notify: '{{ ht_nginx_reload_handler }}'

@@ -1,0 +1,11 @@
+# Arch Linux doesn't define this directory by default, but an example
+# configuration is listed on the Arch Wiki: https://wiki.archlinux.org/title/Nginx#Configuration_example
+#
+# You'll have to create this directory or change ht_nginx_config_dir before
+# running the Ansible role.
+__ht_nginx_config_dir: '/etc/nginx/conf.d'
+
+ht_web_user: http
+
+ht_set_up_clamav: true
+ht_clam_av_run_freshclam: true

@@ -1,0 +1,108 @@
+---
+# Name of the user to create under which the service will run.
+ht_user: handtokening
+
+# Home directory will be used for venv and the static files. This may be changed
+# in the future.
+ht_home: '/home/{{ ht_user }}'
+
+# Name of the service files.
+ht_service: '{{ ht_user }}'
+
+# Main handtokening configuration file path.
+ht_env_file: '/etc/{{ ht_service }}/env'
+ht_env_extra_file: '/etc/{{ ht_service }}/env.extra'
+
+# Passed to `pip install [ht_package]`. Can be a PyPI package name, VCS URL,
+# path on the remote machine, and http(s) URLs. Basically, whatever pip itself
+# supports.
+ht_package: 'https://home.xn--dpping-wxa.eu/pypi/handtokening-0.4.16-py3-none-any.whl'
+
+# Where systemd will place the socket that Gunicorn will use.
+ht_socket_path: '/run/{{ ht_service }}.sock'
+
+# Maximum timeout configured in Gunicorn and NGINX for the signature operation.
+# Keep in mind that this includes the upload, virus scan, and pin entry time, so
+# the timeout should be quite large.
+ht_timeout_seconds: 300
+
+# Path on which the application is accessed.
+ht_path: /
+
+# List of host names the server will get requests for.
+# For example: handtokening.example.com
+# Do not include [http/https]://
+ht_host_names: []
+
+# How many worker processes for handling web requests
+ht_workers: 4
+
+# Is Handtokening placed behind an HTTPS proxy? You should change this to true
+# for production deployments.
+ht_secure: false
+
+# At service startup, create test signing resources.
+ht_set_up_test_signing: true
+
+# Set ht_nginx to true to make the role set up an NGINX site. Unset fields will
+# get a (sometimes platform dependent) default value. Listed below is what you
+# can sort of expect for the defaults.
+ht_nginx: false
+
+# NGINX systemd service name.
+ht_nginx_service: nginx.service
+
+# Name of handler to invoke if the NGINX site config changes. Use this to
+# provide your own handler.
+ht_nginx_reload_handler: "Handtokening reload nginx"
+
+# Directory NGINX logs are placed inside of.
+ht_nginx_log_dir: /var/log/nginx
+
+# NGINX drop-in configuration directory. The `http` block should include a line
+# like: `include /etc/nginx/conf.d/*.conf;` for this to work. This is not set up
+# by this playbook.
+ht_nginx_config_dir: '/etc/nginx/conf.d'
+
+# Name of the configuration file placed inside ht_nginx_config_dir.
+ht_nginx_config_name: '{{ ht_service }}.conf'
+
+# Whether to include the outer server block or omit it and only have the
+# location block.
+ht_nginx_server: true
+
+# Listen address. You can change this to port 443+ssl and add `ssl_certificate*`
+# settings with this variable.
+ht_nginx_server_listen: |
+  listen 8028;
+  listen [::]:8028;
+
+ht_nginx_server_name: |
+  {% if ht_host_names %}
+  server_name {{ ' '.join(ht_host_names) }};
+  {% endif %}
+
+# Any extra configuration you want inside the server block.
+ht_nginx_server_extra: ''
+
+# Log config. Change to empty string to inherit from outer `http` block.
+ht_nginx_location_access_log: 'access_log {{ ht_nginx_log_dir }}/{{ ht_service }}-access.log;'
+
+# Proxy settings. Only change this if you want to override the defaults. Use the
+# `ht_*_extra` variables to add your own (proxy) settings.
+ht_nginx_location_proxy_settings: |
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Host $host;
+  proxy_redirect off;
+
+ht_nginx_location_proxy_pass: 'proxy_pass http://unix:{{ ht_socket_path }};'
+
+# Use this for extra config in the location block. For instance, IP allow list
+# with the 'allow [ip];' and 'deny all;' directives.
+ht_nginx_location_extra: ''
+
+# If you configured an IP allow list using the 'ht_nginx_location_extra'
+# setting, then you can put 'allow all;' here to make only the signing API
+# accessible from outside.
+ht_nginx_location_sign_api_extra: ''

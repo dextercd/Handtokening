@@ -1,0 +1,18 @@
+---
+- name: Stop handtokening service
+  become: true
+  ansible.builtin.systemd:
+    name: '{{ ht_service }}.service'
+    state: stopped
+
+- name: Handtokening reload nginx
+  become: true
+  ansible.builtin.service:
+    name: '{{ ht_nginx_service }}'
+    state: reloaded
+
+- name: Reload AppArmor
+  become: true
+  ansible.builtin.service:
+    name: 'apparmor.service'
+    state: reloaded

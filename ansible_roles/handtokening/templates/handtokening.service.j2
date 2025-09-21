@@ -1,0 +1,61 @@
+[Unit]
+Description=Handtokening daemon
+Requires={{ ht_service }}.socket
+After=network.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+
+KillMode=mixed
+TimeoutStopSec=5
+
+User={{ ht_user }}
+Group={{ ht_user }}
+
+BindPaths={{ ht_home }}
+
+ConfigurationDirectory={{ ht_service }}
+RuntimeDirectory={{ ht_service }}
+StateDirectory={{ ht_service }}
+WorkingDirectory={{ ht_home }}
+
+ExecStart={{ ht_home }}/start.sh
+ExecReload=/bin/kill -s HUP $MAINPID
+
+ExecSearchPath={{ ht_home }}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/bin
+
+Environment="DJANGO_SETTINGS_MODULE=handtokening.settings.prod"
+EnvironmentFile={{ ht_env_file }}
+EnvironmentFile=-{{ ht_env_extra_file }}
+
+# systemd service hardening options
+
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+PrivateUsers=identity
+ProcSubset=pid
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=tmpfs
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProtectSystem=strict
+RemoveIPC=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @privileged @raw-io @reboot @resources @swap
+
+[Install]
+WantedBy=multi-user.target

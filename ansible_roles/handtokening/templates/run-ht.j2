@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import sys
+from shlex import quote
+
+service_path = os.environ.get("SERVICE_PATH") or "/etc/systemd/system/{{ ht_service }}.service"
+
+exec_args = ["systemd-run"]
+
+
+service_param_re = re.compile(r"""
+    ^User|^Group|^ExecSearchPath|^Environment|Directory=|^BindPaths=
+    |^CapabilityBoundingSet=|^LockPersonality=|^MemoryDenyWriteExecute=
+    |^NoNewPrivileges=|^Private|^ProcSubset=|^Protect|^RemoveIPC=
+    |^Restrict|^System
+""", re.X)
+
+
+with open(service_path) as f:
+    fi = iter(f)
+
+    while next(fi).strip() != "[Service]":
+        pass
+
+    while True:
+        item = next(fi, None)
+
+        if item is None or item.startswith("["):
+            break
+
+        item = item.strip()
+        if service_param_re.search(item):
+            # If we run with RuntimeDirectory= set, then the directory is
+            # removed after the task runs, while it might still be in use by
+            # the web service.
+            if item.startswith("RuntimeDirectory"):
+                continue
+
+            item = item.replace("PrivateUsers=", "PrivateUsersEx=")
+
+            if item.startswith("ExecSearchPath="):
+                _, value = item.split("=")
+                for path in value.split(":"):
+                    exec_args.extend(["-p", f"ExecSearchPath={path}"])
+            else:
+                exec_args.extend(["-p", item])
+
+# libncursesw and libreadline try to do syscalls like setfsuid and chown. We
+# need to return an error instead of terminating the process. Otherwise,
+# programs like bash won't run.
+exec_args.extend(["-p", "SystemCallErrorNumber=EPERM"])
+
+exec_args.extend(sys.argv[1:])
+
+print(" ".join(quote(p) for p in exec_args))
+
+os.execlp(exec_args[0], *exec_args)

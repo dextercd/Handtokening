@@ -1,0 +1,14 @@
+# Based on: https://docs.gunicorn.org/en/stable/deploy.html#systemd
+
+[Unit]
+Description=handtokening socket
+
+[Socket]
+ListenStream={{ ht_socket_path }}
+
+SocketUser={{ ht_web_user }}
+SocketGroup={{ ht_web_user }}
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

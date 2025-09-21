@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -e
+
+django-admin migrate
+
+{% if ht_set_up_test_signing %}
+django-admin set_up_test_signing
+{% endif %}
+
+exec 'gunicorn'        \
+    --preload          \
+    --access-logformat '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" "%({x-real-ip}i)s"' \
+    --access-logfile - \
+    --timeout {{ ht_timeout_seconds }} \
+    handtokening.wsgi

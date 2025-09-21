@@ -1,0 +1,33 @@
+{% if ht_nginx_server %}
+server {
+    {{ ht_nginx_server_listen|indent(width=4) }}
+    {{ ht_nginx_server_name|indent(width=4) }}
+    {{ ht_nginx_server_extra|indent(width=4) }}
+{% endif %}
+
+    location {{ ht_nginx_location_url_path }} {
+        {{ ht_nginx_location_access_log|indent(width=8) }}
+
+        {{ ht_nginx_location_proxy_settings|indent(width=8) }}
+        {{ ht_nginx_location_proxy_pass|indent(width=8) }}
+
+        {{ ht_nginx_location_extra|indent(width=8) }}
+
+        location {{ ht_nginx_location_url_path }}static/ {
+            access_log off;
+            alias {{ ht_home }}/static/;
+        }
+
+        location {{ ht_nginx_location_url_path }}api/sign {
+            proxy_read_timeout {{ ht_timeout_seconds }};
+            client_max_body_size 500M;
+
+            {{ ht_nginx_location_proxy_pass|indent(width=12) }}
+
+            {{ ht_nginx_location_sign_api_extra|indent(width=12) }}
+        }
+    }
+
+{% if ht_nginx_server %}
+}
+{% endif %}

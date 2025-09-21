@@ -1,0 +1,22 @@
+- name: Install packages
+  become: true
+  ansible.builtin.apt:
+    name:
+      - clamav
+      - clamav-daemon
+      - clamav-freshclam
+      - clamdscan
+      - libccid
+      - osslsigncode
+      - pcscd
+      - python3
+      - python3-pip
+      - python3-venv
+      - acl
+
+- name: Enable pcscd.socket
+  become: true
+  ansible.builtin.systemd:
+    name: pcscd.socket
+    state: started
+    enabled: true

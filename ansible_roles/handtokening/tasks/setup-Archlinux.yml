@@ -1,0 +1,70 @@
+- name: Install packages
+  become: true
+  community.general.pacman:
+    name:
+      - ccid
+      - clamav
+      - openssl
+      - pcsclite
+      - python
+      - python-pip
+
+- name: Enable pcscd.socket
+  become: true
+  ansible.builtin.systemd:
+    name: pcscd.socket
+    state: started
+    enabled: true
+
+- name: Check if osslsigncode is installed
+  ansible.builtin.command: which osslsigncode
+  register: osslsigncode_check
+  failed_when: osslsigncode_check.rc not in [0, 1]
+  changed_when: false
+
+- name: Build osslsigncode
+  when: osslsigncode_check.rc == 1
+  block:
+    - name: Install build dependencies
+      become: true
+      community.general.pacman:
+        name:
+          - base-devel
+          - cmake
+          - curl
+          - libfaketime
+          - perl
+          - python-cryptography
+
+    - name: Download osslsigncode from AUR
+      become: true
+      become_user: '{{ ht_user }}'
+      ansible.builtin.unarchive:
+        src: https://aur.archlinux.org/cgit/aur.git/snapshot/osslsigncode.tar.gz
+        dest: '{{ ht_home }}'
+        remote_src: true
+
+    - name: Delete built packages
+      become: true
+      become_user: '{{ ht_user }}'
+      ansible.builtin.command:
+        argv:
+          - find
+          - '{{ ht_home }}/osslsigncode'
+          - -name
+          - '*.pkg.tar.zst'
+          - -delete
+
+    - name: Run makepkg
+      become: true
+      become_user: '{{ ht_user }}'
+      ansible.builtin.command:
+        chdir: '{{ ht_home }}/osslsigncode'
+        cmd: makepkg
+
+    - name: Install osslsigncode
+      become: true
+      ansible.builtin.shell:
+        chdir: '{{ ht_home }}/osslsigncode'
+        cmd: pacman -U --noconfirm osslsigncode-[^d]*
+        creates: /usr/local/bin/osslsigncode

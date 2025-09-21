@@ -1,0 +1,48 @@
+- name: Ensure /var/log/clamav/freshclam.log exists
+  when: ht_clam_av_run_freshclam
+  become: true
+  ansible.builtin.file:
+    path: /var/log/clamav/freshclam.log
+    state: touch
+    access_time: preserve
+    modification_time: preserve
+    mode: '600'
+    owner: clamav
+    group: clamav
+
+- name: Run initial freshclam
+  when: ht_clam_av_run_freshclam
+  become: true
+  ansible.builtin.command:
+    cmd: freshclam
+    creates: /var/lib/clamav/daily.cld
+
+- name: Enable ClamAV Db Periodic Update
+  become: true
+  ansible.builtin.systemd:
+    name: clamav-freshclam.service
+    state: started
+    enabled: true
+
+- name: Check for AppArmor local config directory
+  ansible.builtin.stat:
+    path: /etc/apparmor.d/local
+  register: apparmor_dir
+
+- name: Grant ClamAV access to Handtokening directory in AppArmor profile
+  when: apparmor_dir.stat.exists
+  become: true
+  ansible.builtin.blockinfile:
+    path: /etc/apparmor.d/local/usr.sbin.clamd
+    create: true
+    marker: '# {mark} ANSIBLE MANAGED BLOCK for Handtokening'
+    block: |
+      /var/lib/{{ ht_service }}/in/* r,
+  notify: Reload AppArmor
+
+- name: Start and enable ClamAV daemon
+  become: true
+  ansible.builtin.systemd:
+    name: clamav-daemon.service
+    state: started
+    enabled: true
