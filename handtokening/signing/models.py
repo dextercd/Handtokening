@@ -21,7 +21,6 @@ class Certificate(models.Model):
     is_pkcs11 = models.BooleanField(default=False)
     expires = models.DateTimeField()
     pkcs11_module = models.CharField(null=True, blank=True)
-    ossl_provider = models.CharField(null=True, blank=True)
     is_enabled = models.BooleanField(default=True)
 
     created = models.DateTimeField(auto_now_add=True)
