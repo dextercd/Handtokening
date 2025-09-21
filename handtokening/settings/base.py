@@ -1,3 +1,8 @@
+import os
+import platform
+
+platform_name = platform.platform()
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -94,3 +99,36 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
 }
+
+# Handtokening
+
+
+def path_config(var_name: str, system_default: dict[str, str]):
+    if var_name in os.environ:
+        globals()[var_name] = os.environ[var_name]
+    else:
+        for os_name, path in system_default.items():
+            if os_name in platform_name and os.path.exists(path):
+                globals()[var_name] = path
+
+
+path_config(
+    "OSSL_PROVIDER_PATH",
+    {
+        "arch": "/usr/lib/ossl-modules/pkcs11prov.so",
+    },
+)
+path_config(
+    "OSSL_ENGINE_PATH",
+    {
+        "arch": "usr/lib/engines-3/pkcs11.so",
+        "deb": "/usr/lib/x86_64-linux-gnu/engines-3/pkcs11.so",
+    },
+)
+path_config(
+    "PKCS11_MODULE_PATH",
+    {
+        "arch": "/usr/lib/opensc-pkcs11.so",
+        "deb": "/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so",
+    },
+)

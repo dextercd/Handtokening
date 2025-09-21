@@ -164,8 +164,9 @@ class SignView(APIView):
             # PKCS #11
             if certificate.is_pkcs11:
                 cmd.pkcs11 = OSSLSignCodePkcs11(
-                    provider=config.OSSL_PROVIDER_PATH,
                     module=certificate.pkcs11_module or config.PKCS11_MODULE_PATH,
+                    provider=config.OSSL_PROVIDER_PATH,
+                    engine=config.OSSL_ENGINE_PATH,
                 )
 
             cmd.timestamp_servers = list(

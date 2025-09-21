@@ -6,17 +6,16 @@ from django.conf import settings
 
 class Configuration:
     @cached_property
-    def OSSL_PROVIDER_PATH(self) -> str:
-        return (
-            getattr(settings, "OSSL_PROVIDER_PATH", None)
-            or "/usr/lib/ossl-modules/pkcs11prov.so"
-        )
+    def OSSL_PROVIDER_PATH(self) -> str | None:
+        return getattr(settings, "OSSL_PROVIDER_PATH", None)
 
     @cached_property
-    def PKCS11_MODULE_PATH(self) -> str:
-        return (
-            getattr(settings, "PKCS11_MODULE_PATH", None) or "/usr/lib/opensc-pkcs11.so"
-        )
+    def OSSL_ENGINE_PATH(self) -> str | None:
+        return getattr(settings, "OSSL_ENGINE_PATH", None)
+
+    @cached_property
+    def PKCS11_MODULE_PATH(self) -> str | None:
+        return getattr(settings, "PKCS11_MODULE_PATH", None)
 
     @cached_property
     def OSSLSIGNCODE_PATH(self) -> str:

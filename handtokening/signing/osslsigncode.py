@@ -6,12 +6,15 @@ import random
 import re
 import shlex
 import subprocess
+from typing import BinaryIO
+import tempfile
 
 
 @dataclass
 class OSSLSignCodePkcs11:
-    provider: str
     module: str
+    provider: str | None = None
+    engine: str | None = None
 
 
 @dataclass
@@ -62,6 +65,17 @@ class OSSLSignCodeCommand:
                     f"Missing value for osslsigncode sign command: '{field_name}'"
                 )
 
+    @property
+    def pkcs11_mode(self) -> str:
+        if self.pkcs11 is None:
+            return None
+        elif self.pkcs11.provider:
+            return "provider"
+        elif self.pkcs11.engine:
+            return "engine"
+        else:
+            raise RuntimeError("No osslsigncode pkcs11 provider or engine specified")
+
     def build_command(self) -> list[str]:
         self._require_fields("cert_path", "key_path", "in_path", "out_path")
 
@@ -71,9 +85,12 @@ class OSSLSignCodeCommand:
         ]
 
         if self.pkcs11:
-            command.extend(
-                ["-provider", self.pkcs11.provider, "-pkcs11module", self.pkcs11.module]
-            )
+            if self.pkcs11_mode == "provider":
+                command.extend(["-provider", self.pkcs11.provider])
+            elif self.pkcs11_mode == "engine":
+                command.extend(["-pkcs11engine", self.pkcs11.engine])
+
+            command.extend(["-pkcs11module", self.pkcs11.module])
 
         is_pkcs11_cert = self.cert_path.startswith("pkcs11:")
 
@@ -108,12 +125,24 @@ class OSSLSignCodeCommand:
         command = self.build_command()
         env = None
 
+        pin_path: str | None = None
+
         if self.pin:
-            env = os.environ.copy()
-            env["PKCS11_PIN"] = self.pin
-            env["PKCS11_FORCE_LOGIN"] = "1"
+            if self.pkcs11_mode == "provider":
+                env = os.environ.copy()
+                env["PKCS11_PIN"] = self.pin
+                env["PKCS11_FORCE_LOGIN"] = "1"
+            elif self.pkcs11_mode == "engine":
+                pinfd, pin_path = tempfile.mkstemp()
+                os.write(pinfd, self.pin.encode())
+                os.close(pinfd)
+
+                command.extend(["-readpass", pin_path])
 
         result = subprocess.run(command, capture_output=True, text=True, env=env)
+
+        if pin_path:
+            os.unlink(pin_path)
 
         return OSSLSignCodeResult(
             returncode=result.returncode,

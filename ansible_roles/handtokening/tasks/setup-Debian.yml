@@ -2,17 +2,19 @@
   become: true
   ansible.builtin.apt:
     name:
+      - acl
       - clamav
       - clamav-daemon
       - clamav-freshclam
       - clamdscan
       - libccid
+      - libengine-pkcs11-openssl
+      - opensc-pkcs11
       - osslsigncode
       - pcscd
       - python3
       - python3-pip
       - python3-venv
-      - acl
 
 - name: Enable pcscd.socket
   become: true
