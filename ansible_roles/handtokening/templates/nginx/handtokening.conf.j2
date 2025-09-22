@@ -20,7 +20,7 @@ server {
 
         location {{ ht_nginx_location_url_path }}api/sign {
             proxy_read_timeout {{ ht_timeout_seconds }};
-            client_max_body_size 500M;
+            client_max_body_size {{ ht_nginx_max_body_size }};
 
             {{ ht_nginx_location_proxy_pass|indent(width=12) }}
 

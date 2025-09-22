@@ -4,7 +4,7 @@ from pathlib import Path
 from .util import env_bool
 from .base import *
 
-DEBUG = False
+DEBUG = env_bool("UNSAFE_DEBUG", False)
 
 state_dir = Path(environ["STATE_DIRECTORY"])
 config_dir = Path(environ["CONFIGURATION_DIRECTORY"])

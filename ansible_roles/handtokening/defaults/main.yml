@@ -92,9 +92,12 @@ ht_nginx_location_access_log: 'access_log {{ ht_nginx_log_dir }}/{{ ht_service }
 # `ht_*_extra` variables to add your own (proxy) settings.
 ht_nginx_location_proxy_settings: |
   proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_set_header Host $host;
+  proxy_set_header Host $http_host;
   proxy_redirect off;
+
+ht_nginx_max_body_size: '500M'
 
 ht_nginx_location_proxy_pass: 'proxy_pass http://unix:{{ ht_socket_path }};'
 

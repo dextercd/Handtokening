@@ -132,3 +132,9 @@ path_config(
         "deb": "/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so",
     },
 )
+
+if "OSSLSIGNCODE_PATH" in os.environ:
+    OSSLSIGNCODE_PATH = os.environ["OSSLSIGNCODE_PATH"]
+
+if "CLAMSCAN_PATH" in os.environ:
+    CLAMSCAN_PATH = os.environ["CLAMSCAN_PATH"]
