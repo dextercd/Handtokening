@@ -38,13 +38,13 @@ class Command(BaseCommand):
         if new_user:
             signing_profile.users_with_access.add(user)
 
-        not_before = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(
-            hours=-1
-        )
-        not_after = not_before + timedelta(days=3653, seconds=-1)
+        now = datetime.now(timezone.utc).replace(hour=0, second=0, microsecond=0)
+        next_half_decade = now.replace(year=now.year // 5 * 5 + 5, month=1, day=1)
 
-        label = str(not_before.year // 10 * 10).zfill(4)
-        if not_before.month <= 6:
+        cert_lifetime = next_half_decade - now + timedelta(days=30)
+
+        label = str(now.year // 10 * 10).zfill(4)
+        if now.month <= 6:
             label += "HD1"
         else:
             label += "HD2"
@@ -57,7 +57,7 @@ class Command(BaseCommand):
             defaults={
                 "cert_path": str(cert_path),
                 "key_path": str(key_path),
-                "expires": not_after,
+                "expires": now + cert_lifetime,
             },
         )
 
@@ -69,8 +69,7 @@ class Command(BaseCommand):
                     "-noenc",
                     "-newkey", "rsa:4096",
                     "-subj", f"/CN=Handtokening Test Sign {label}",
-                    "-not_before", not_before.strftime("%Y%m%d%H%M%SZ"),
-                    "-not_after", not_after.strftime("%Y%m%d%H%M%SZ"),
+                    "-days", str(cert_lifetime.days),
                     "-addext", "basicConstraints=critical,CA:TRUE",
                     "-addext", "keyUsage=digitalSignature",
                     "-addext", "extendedKeyUsage=codeSigning",

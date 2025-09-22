@@ -100,6 +100,9 @@ class SigningTests(TestCase):
         self.assertTrue("# SIG # End signature block" in response_file)
 
     def test_eicars(self):
+        if config.CLAMSCAN_PATH == "/usr/bin/true":
+            return
+
         resp = self.client.post(
             "/api/sign?" + urlencode({"signing-profile": "test-signing"}),
             EICAR,
@@ -308,8 +311,9 @@ class SigningTests(TestCase):
         self.assertEqual(log.osslsigncode_returncode, 1)
         self.assertTrue(
             "Initialization error or unsupported input file type."
-            in log.osslsigncode_stderr
+            in log.osslsigncode_stderr + log.osslsigncode_stdout
         )
+        # osslsigncode <=2.8 puts errors in stdout
         self.assertTrue("Failed" in log.osslsigncode_stdout)
 
         self.assertIsNone(log.vt_analysis)
