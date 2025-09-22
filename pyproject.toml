@@ -2,6 +2,7 @@
 name = "handtokening"
 version = "0.4.0"
 description = "Code-signing server built in Python/Django"
+license = "AGPL-3.0-only"
 readme = "README.md"
 authors = [
     { name = "Dexter Castor Döpping", email = "dexter.c.dopping@gmail.com" }
