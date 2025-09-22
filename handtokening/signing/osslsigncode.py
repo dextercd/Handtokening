@@ -6,7 +6,6 @@ import random
 import re
 import shlex
 import subprocess
-from typing import BinaryIO
 import tempfile
 
 
