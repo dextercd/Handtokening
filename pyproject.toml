@@ -16,6 +16,10 @@ dependencies = [
     "vt-py~=0.21",
 ]
 
+[project.urls]
+Repository = "https://github.com/dextercd/Handtokening"
+Issues = "https://github.com/dextercd/Handtokening/issues"
+
 [dependency-groups]
 dev = [
     "black>=25.1.0",
