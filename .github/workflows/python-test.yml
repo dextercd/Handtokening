@@ -1,3 +1,5 @@
+name: Python Lint and Test
+
 on: [push, pull_request]
 
 permissions:
