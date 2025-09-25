@@ -217,7 +217,7 @@ wheels = [
 
 [[package]]
 name = "handtokening"
-version = "0.4.23"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "asn1crypto" },
