@@ -16,7 +16,7 @@ ht_env_extra_file: '/etc/{{ ht_service }}/env.extra'
 # Passed to `pip install [ht_package]`. Can be a PyPI package name, VCS URL,
 # path on the remote machine, and http(s) URLs. Basically, whatever pip itself
 # supports.
-ht_package: 'handtokening==1.0.0'
+ht_package: 'handtokening==1.0.2'
 
 # Where systemd will place the socket that Gunicorn will use.
 ht_socket_path: '/run/{{ ht_service }}.sock'
