@@ -27,7 +27,7 @@ In summary:
 * Write variables to the config file that are appropriate for your setup.
 * Expose the service via a reverse proxy; sitting in front of the gunicorn socket.
 
-There's an Ansible role to perform all these steps.
+There's an [Ansible role](https://github.com/dextercd/Handtokening/tree/main/ansible_roles/handtokening) to perform all these steps.
 You can use this to automatically deploy the application or as a reference and perform the steps manually.
 
 ### Ansible sample config
