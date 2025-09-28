@@ -204,7 +204,7 @@ The contents of the `env` file is determined by the Ansible role, and `env.extra
 
 Standard Django variable: [#DJANGO\_SETTINGS\_MODULE](https://docs.djangoproject.com/en/5.2/topics/settings/#envvar-DJANGO_SETTINGS_MODULE).
 
-Defaults to `handtokening.settings.local`.
+Has no default. If you try to run the program without setting this, it'll exit with an error.
 
 Set to `handtokening.settings.prod` by the Ansible role.
 
